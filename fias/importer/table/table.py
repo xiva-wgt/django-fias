@@ -77,12 +77,9 @@ class TableIterator(object):
         raise NotImplementedError()
 
     def process_row(self, row):
-        try:
-            row = dict(self.format_row(row))
-        except ParentLookupException as e:
-            return None
+        dict_row = self.format_row(row)
 
-        item = self.model(**row)
+        item = self.model(**dict_row)
         for filter_func in TABLE_ROW_FILTERS.get(self.model._meta.model_name, tuple()):
             item = filter_func(item)
 
@@ -112,17 +109,18 @@ class Table(object):
 
         self.deleted = bool(kwargs.get('deleted', False))
 
-    def _truncate(self, model):
+    @staticmethod
+    def _truncate(model):
         db_table = model._meta.db_table
         connection = connections[router.db_for_write(model)]
         cursor = connection.cursor()
 
         if connection.vendor == 'postgresql':
-            cursor.execute('TRUNCATE TABLE {0} RESTART IDENTITY CASCADE'.format(db_table))
+            cursor.execute('TRUNCATE TABLE {} RESTART IDENTITY CASCADE'.format(db_table))
         elif connection.vendor == 'mysql':
-            cursor.execute('TRUNCATE TABLE `{0}`'.format(db_table))
+            cursor.execute('TRUNCATE TABLE `{}`'.format(db_table))
         else:
-            cursor.execute('DELETE FROM {0}'.format(db_table))
+            cursor.execute('DELETE FROM {}'.format(db_table))
 
     def truncate(self):
         self._truncate(self.model)
